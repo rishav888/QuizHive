@@ -1,0 +1,2014 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizHive</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/css/bootstrap.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@4.6.1/dist/js/bootstrap.bundle.min.js"></script>
+    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.7.0/css/all.css"
+        integrity="sha384-lZN37f5QGtY3VHgisS14W3ExzMWZxybE1SJSEsQp9S+oqd12jhcu+A56Ebc1zFSJ" crossorigin="anonymous">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/slick-carousel/1.9.0/slick.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Bootstrap 5.3 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap Icons (for the hamburger icon) -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css" rel="stylesheet">
+
+
+<script>
+document.addEventListener("DOMContentLoaded", function () {
+
+/* ---------------------------------------------------------
+   SHORTCUTS
+--------------------------------------------------------- */
+const $ = s => document.querySelector(s);
+const $all = s => Array.from(document.querySelectorAll(s));
+
+/* ---------------------------------------------------------
+   HOME SHOW / HIDE
+--------------------------------------------------------- */
+function showHome() {
+    ["items", "containts", "subjectsSection", "foot"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "block";
+    });
+}
+function hideHome() {
+    ["containts", "subjectsSection", "foot"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = "none";
+    });
+}
+
+/* ---------------------------------------------------------
+   TOAST (BOTTOM LEFT)
+--------------------------------------------------------- */
+const toastContainer = document.createElement("div");
+toastContainer.style.position = "fixed";
+toastContainer.style.bottom = "20px";
+toastContainer.style.left = "20px";
+toastContainer.style.zIndex = "9999";
+document.body.appendChild(toastContainer);
+
+function showToast(message, showPay = false) {
+    const toast = document.createElement("div");
+    toast.className = "toast show bg-dark text-white p-3 rounded mb-2";
+    toast.style.minWidth = "250px";
+    toast.innerHTML = `
+        <div class="d-flex align-items-center justify-content-between">
+            <div>${message}</div>
+            ${showPay ? '<button class="btn btn-warning btn-sm ms-3" id="toastPayBtn">Pay</button>' : ''}
+        </div>
+    `;
+    toastContainer.appendChild(toast);
+    setTimeout(() => { if (toast.parentNode) toast.remove(); }, 4000);
+
+    if (showPay) {
+        const pb = toast.querySelector("#toastPayBtn");
+        if (pb) pb.addEventListener("click", () => {
+            $all("section").forEach(s => s.style.display = "none");
+            const pay = document.getElementById("paymentSection");
+            if (pay) {
+                pay.style.display = "block";
+                pay.scrollIntoView({ behavior: "smooth" });
+            }
+            if (toast.parentNode) toast.remove();
+        });
+    }
+}
+
+/* ---------------------------------------------------------
+   CREATE QUIZ — ADD/REMOVE QUESTIONS
+--------------------------------------------------------- */
+const questionsContainer = document.getElementById("questionsContainer");
+const addQuestionBtn = document.getElementById("addQuestionBtn");
+const MAX_Q = 10;
+
+function updateQuestionNumbers() {
+    $all("#questionsContainer .card h5").forEach((h, i) => {
+        h.textContent = `Question ${i + 1}`;
+    });
+}
+
+function attachRemoveHandlerToCard(card) {
+    if (!card.querySelector(".remove-question")) {
+        const wrap = document.createElement("div");
+        wrap.className = "d-flex justify-content-end mt-2";
+        wrap.innerHTML = `<button type="button" class="btn btn-sm btn-danger remove-question">Remove</button>`;
+        card.appendChild(wrap);
+    }
+}
+
+function addOptions(card) {
+    if (card.querySelector(".option-input")) return;
+    const div = document.createElement("div");
+    div.innerHTML = `
+        <input type="text" class="form-control mb-2 option-input" placeholder="Option A">
+        <input type="text" class="form-control mb-2 option-input" placeholder="Option B">
+        <input type="text" class="form-control mb-2 option-input" placeholder="Option C">
+        <input type="text" class="form-control mb-2 option-input" placeholder="Option D">
+    `;
+    const existingRemove = card.querySelector(".remove-question");
+    if (existingRemove) {
+        existingRemove.parentElement.insertAdjacentElement("beforebegin", div);
+    } else {
+        card.appendChild(div);
+    }
+}
+
+if (questionsContainer) {
+    const first = questionsContainer.querySelector(".card");
+    if (first) {
+        addOptions(first);
+        attachRemoveHandlerToCard(first);
+        updateQuestionNumbers();
+    }
+}
+
+if (addQuestionBtn) {
+    addQuestionBtn.addEventListener("click", function () {
+        const total = $all("#questionsContainer .card").length;
+        if (total >= MAX_Q) {
+            showToast(`You reached the limit of ${MAX_Q} questions!`, true);
+            return;
+        }
+        const card = document.createElement("div");
+        card.className = "card mb-4 p-3";
+        card.innerHTML = `
+            <h5>Question</h5>
+            <input type="text" class="form-control mb-3 question-input" placeholder="Enter your question here">
+        `;
+        addOptions(card);
+        attachRemoveHandlerToCard(card);
+        questionsContainer.appendChild(card);
+        updateQuestionNumbers();
+    });
+}
+
+document.addEventListener("click", function (e) {
+    const rem = e.target.closest && e.target.closest(".remove-question");
+    if (!rem) return;
+    const card = rem.closest(".card");
+    if (!card) return;
+    card.remove();
+    updateQuestionNumbers();
+});
+
+/* ---------------------------------------------------------
+   NAV → CREATE SCREEN
+--------------------------------------------------------- */
+const createNavBtn = document.querySelector('a[href="#questionSection"]');
+if (createNavBtn) {
+    createNavBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        $all("section").forEach(s => s.style.display = "none");
+        const qs = document.getElementById("questionSection");
+        if (qs) qs.style.display = "block";
+        hideHome();
+
+        const fc = questionsContainer ? questionsContainer.querySelector(".card") : null;
+        if (fc) { addOptions(fc); attachRemoveHandlerToCard(fc); updateQuestionNumbers(); }
+    });
+}
+
+/* ---------------------------------------------------------
+   CANCEL CREATE
+--------------------------------------------------------- */
+(function ensureCreateCancel() {
+    const qsec = document.getElementById("questionSection");
+    if (!qsec) return;
+    let cb = document.getElementById("cancel-btn") || document.getElementById("cancelCreateBtn") || qsec.querySelector(".cancel-create");
+    if (!cb) {
+        cb = document.createElement("button");
+        cb.type = "button";
+        cb.id = "cancel-btn";
+        cb.className = "btn btn-secondary mb-3";
+        cb.textContent = "Cancel";
+        const insertBeforeEl = document.getElementById("questionsContainer") || qsec.firstElementChild;
+        insertBeforeEl.parentNode.insertBefore(cb, insertBeforeEl);
+    }
+    if (!cb.dataset._listenerAttached) {
+        cb.addEventListener("click", function (ev) {
+            ev.preventDefault();
+            const qs = document.getElementById("questionSection");
+            if (qs) qs.style.display = "none";
+            showHome();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        cb.dataset._listenerAttached = "1";
+    }
+})();
+
+/* ---------------------------------------------------------
+   REVIEW QUIZ
+--------------------------------------------------------- */
+const submitQuizBtn = document.getElementById("submitQuizBtn");
+const createdQuestionsContainer = document.getElementById("createdQuestionsContainer");
+
+if (submitQuizBtn && createdQuestionsContainer) {
+    submitQuizBtn.addEventListener("click", function () {
+        createdQuestionsContainer.innerHTML = "";
+        const cards = $all("#questionsContainer .card");
+        cards.forEach((card, idx) => {
+            const q = (card.querySelector(".question-input") || {}).value || "";
+            const opts = card.querySelectorAll(".option-input");
+            const block = document.createElement("div");
+            block.className = "card p-3 mb-3 shadow-sm";
+            let optsHtml = "";
+            opts.forEach((o, i) => { optsHtml += `<p class="mb-1"><strong>${String.fromCharCode(65 + i)}:</strong> ${o.value.trim()}</p>`; });
+            block.innerHTML = `<h5>Question ${idx + 1}</h5><p><strong>Q:</strong> ${q}</p><div>${optsHtml}</div>`;
+            createdQuestionsContainer.appendChild(block);
+        });
+        $all("section").forEach(s => s.style.display = "none");
+        const review = document.getElementById("reviewQuizSection");
+        if (review) { review.style.display = "block"; review.scrollIntoView({ behavior: "smooth" }); }
+    });
+}
+
+/* ---------------------------------------------------------
+   CANCEL REVIEW
+--------------------------------------------------------- */
+(function attachReviewCancel() {
+    const cancelReview = document.getElementById("cancelfromthesubmit");
+    if (!cancelReview) return;
+    if (!cancelReview.dataset._listener) {
+        cancelReview.addEventListener("click", function (e) {
+            e.preventDefault();
+            const rev = document.getElementById("reviewQuizSection");
+            if (rev) rev.style.display = "none";
+            if (createdQuestionsContainer) createdQuestionsContainer.innerHTML = "";
+            const code = document.getElementById("quizCodeContainer");
+            if (code) code.style.display = "none";
+            showHome();
+            window.scrollTo({ top: 0, behavior: "smooth" });
+        });
+        cancelReview.dataset._listener = "1";
+    }
+})();
+
+/* ---------------------------------------------------------
+   SIGNUP LOGIC
+--------------------------------------------------------- */
+(function signup() {
+    const signupNav = document.getElementById("signupBtn");
+    const signupSection = document.getElementById("signupSection");
+    const proceed = document.getElementById("proceedBtn");
+    const nameInput = document.getElementById("name");
+    if (signupNav && signupSection) {
+        signupNav.addEventListener("click", function (e) {
+            e.preventDefault();
+            $all("section").forEach(s => s.style.display = "none");
+            signupSection.style.display = "block";
+            signupSection.scrollIntoView({ behavior: "smooth" });
+        });
+    }
+    if (proceed) {
+        proceed.addEventListener("click", function () {
+            const name = nameInput ? nameInput.value.trim() : "";
+            if (!name) { showToast("Please enter your name!"); return; }
+            if (signupNav) signupNav.textContent = name;
+            showToast(`Welcome, ${name}!`);
+            $all("section").forEach(s => s.style.display = "none");
+            showHome();
+        });
+    }
+})();
+
+/* ---------------------------------------------------------
+   SCROLL BUTTONS
+--------------------------------------------------------- */
+(function attachScroll() {
+    const sub = document.querySelector('a[href="#subjectsSection"]');
+    if (sub) sub.addEventListener("click", function (e) {
+        e.preventDefault();
+        const s = document.getElementById("subjectsSection");
+        if (s) s.scrollIntoView({ behavior: "smooth" });
+    });
+    const know = document.querySelector('a[href="#footerSection"]');
+    if (know) know.addEventListener("click", function (e) {
+        e.preventDefault();
+        const f = document.getElementById("foot") || document.querySelector("footer");
+        if (f) f.scrollIntoView({ behavior: "smooth" });
+    });
+})();
+
+/* ---------------------------------------------------------
+   AUTO-CLOSE NAVBAR (MOBILE)
+--------------------------------------------------------- */
+(function autohide() {
+    $all(".navbar-nav .nav-link").forEach(link => {
+        link.addEventListener("click", function () {
+            const collapse = document.querySelector(".navbar-collapse");
+            if (collapse && collapse.classList.contains("show")) {
+                if (typeof bootstrap !== "undefined" && bootstrap.Collapse) {
+                    const bs = new bootstrap.Collapse(collapse);
+                    bs.hide();
+                } else {
+                    collapse.classList.remove("show");
+                }
+            }
+        });
+    });
+})();
+
+/* =============================================================================
+   SLIDER + CARD LOGIC (MERGED BOTH SCRIPTS)
+============================================================================= */
+
+const sliderWrapper = document.querySelector(".slider");
+const slides = sliderWrapper ? Array.from(sliderWrapper.children) : [];
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+
+let position = 0;
+
+function getVisibleSlides() {
+    const screenWidth = window.innerWidth;
+    if (screenWidth >= 992) return 4;
+    if (screenWidth >= 768) return 3;
+    return 1;
+}
+
+function updateSlider() {
+    if (!slides.length) return;
+
+    const slideStyle = getComputedStyle(slides[0]);
+    const slideWidth = slides[0].offsetWidth + parseInt(slideStyle.marginRight);
+    const visibleSlides = getVisibleSlides();
+    const maxTranslate = -(slideWidth * (slides.length - visibleSlides));
+
+    if (nextBtn) {
+        nextBtn.onclick = () => {
+            if (position > maxTranslate) {
+                position -= slideWidth;
+                if (position < maxTranslate) position = maxTranslate;
+                sliderWrapper.style.transform = `translateX(${position}px)`;
+            }
+        };
+    }
+
+    if (prevBtn) {
+        prevBtn.onclick = () => {
+            if (position < 0) {
+                position += slideWidth;
+                if (position > 0) position = 0;
+                sliderWrapper.style.transform = `translateX(${position}px)`;
+            }
+        };
+    }
+}
+
+if (sliderWrapper) updateSlider();
+window.addEventListener("resize", () => {
+    position = 0;
+    if (sliderWrapper) sliderWrapper.style.transform = `translateX(${position}px)`;
+    updateSlider();
+});
+
+/* ---------------------------------------------------------
+   SHOW/HIDE QUIZ CARDS
+--------------------------------------------------------- */
+const quizCards = ["dsaq", "organisationq", "cprogrammingq", "biologyquiz", "physicsq"];
+
+function hideAllQuizCards() {
+    quizCards.forEach(id => {
+        const c = document.getElementById(id);
+        if (c) c.style.display = "none";
+    });
+}
+
+hideAllQuizCards();
+
+const quizMapping = {
+    "dsa": "dsaq",
+    "computerorganisation": "organisationq",
+    "cprogramming": "cprogrammingq",
+    "card4q": "biologyquiz",
+    "card5q": "physicsq"
+};
+
+slides.forEach(slide => {
+    slide.style.cursor = "pointer";
+    slide.addEventListener("click", () => {
+        const cardId = quizMapping[slide.id];
+        if (!cardId) return;
+        hideAllQuizCards();
+        const card = document.getElementById(cardId);
+        if (card) {
+            card.style.display = "block";
+            card.scrollIntoView({ behavior: "smooth" });
+        }
+    });
+});
+
+/* =============================================================================
+   ANSWER CHECKING + RESULT SHOW
+============================================================================= */
+
+const answers = {
+    dsaq: ['b','b','b','b','b','c','d','b','b','c'],
+    organisationq: ['d','a','b','c','d','b','c','b','b','b'],
+    cprogrammingq: ['b','c','b','b','c','c','b','b','c','c'],
+    biologyquiz: ['c','b','d','c','c','d','b','b','c','d'],
+    physicsq: ['b','d','b','b','d','c','b','c','a','c'],
+    chemistry: ['c','c','b','b','b','b','c','b','c','c']
+};
+
+const submitMap = {
+    subdsa: 'dsaq',
+    suborg: 'organisationq',
+    subc: 'cprogrammingq',
+    subbio: 'biologyquiz',
+    subphy: 'physicsq',
+    subchem: 'chemistry'
+};
+
+function calculateScore(cardId) {
+    const card = document.getElementById(cardId);
+    const userAnswers = [];
+
+    for (let i = 0; i < 10; i++) {
+        const qRadios = card.querySelectorAll(
+            `input[name$="_q${i+1}"], input[name^="c${i+1}"], input[name^="p${i+1}"], input[name^="org_q${i+1}"]`
+        );
+        let selected = '';
+        qRadios.forEach(r => { if (r.checked) selected = r.id.slice(-1); });
+        userAnswers.push(selected);
+    }
+
+    let score = 0;
+    const correct = answers[cardId];
+    for (let i = 0; i < correct.length; i++) {
+        if (userAnswers[i] === correct[i]) score++;
+    }
+    return score;
+}
+
+Object.keys(submitMap).forEach(subId => {
+    const subBtn = document.getElementById(subId);
+    if (subBtn) {
+        subBtn.addEventListener('click', () => {
+            const cardId = submitMap[subId];
+            const score = calculateScore(cardId);
+
+            document.getElementById('userScore').textContent = `${score} / 10`;
+            document.getElementById('resultContainer').style.display = 'block';
+
+            const card = document.getElementById(cardId);
+            if (card) card.style.display = 'none';
+
+            document.getElementById('resultContainer').scrollIntoView({behavior: "smooth"});
+        });
+    }
+});
+
+const closeBtn = document.getElementById('closeResultBtn');
+if (closeBtn) {
+    closeBtn.addEventListener('click', () => {
+        document.getElementById('resultContainer').style.display = 'none';
+    });
+}
+
+});
+</script>
+
+<!--CSS-->
+<style>
+/* Navbar background */
+.navbar {
+    background-color: white !important;
+}
+
+/* Navbar text color */
+.navbar .navbar-brand,
+.navbar .nav-link {
+    color: #722F37 !important;  /* wine color */
+}
+
+/* Hover effect */
+.navbar .nav-link:hover {
+    color: #9b3b47 !important; /* slightly lighter wine */
+}
+
+#containts {
+    background-color: #001f3f !important;   /* dark blue */
+    color: white;                            /* makes text readable */
+    padding: 60px 0;
+}
+
+#subjectsSection {
+    background-color: #44576D !important;   /* Sky blue */
+    padding: 50px 0;
+}
+#subjectsSection h2 {
+    color: #ffffff !important;   /* heading color */
+}
+
+#subjectsSection p {
+    color: #ffffff !important;   /* paragraph color */
+}
+
+#prevBtn,
+#nextBtn {
+    background-color: white !important;
+    border-color: white !important;
+    color: black !important;  /* Icon color stays visible */
+}
+
+#prevBtn i,
+#nextBtn i {
+    color: black !important;  /* Arrow icon color */
+}
+
+
+#dsaq {
+    background-color: #AAC7D8;
+    max-width: 900px;   /* you can increase or reduce */
+    margin: 0 auto;     /* centers the card */
+}
+#organisationq {
+    background-color: #AAC7D8;
+    max-width: 900px;   /* you can increase or reduce */
+    margin: 0 auto;     /* centers the card */
+}
+#cprogrammingq {
+    background-color: #AAC7D8;
+    max-width: 900px;   /* you can increase or reduce */
+    margin: 0 auto;     /* centers the card */
+}
+#biologyquiz {
+    background-color: #AAC7D8;
+    max-width: 900px;   /* you can increase or reduce */
+    margin: 0 auto;     /* centers the card */
+}
+#physicsq {
+    background-color: #AAC7D8;
+    max-width: 900px;   /* you can increase or reduce */
+    margin: 0 auto;     /* centers the card */
+}
+
+#questionSection {
+    background-color: #d6f1ff !important;  /* light sky blue */
+}
+
+#resultContainer {
+    background-color: #E6E6E6;
+}
+</style>
+</head>
+
+<body>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm py-3 sticky-top" id="items">
+        <div class="container-fluid">
+
+            <!-- Brand / Logo on far left -->
+            <a class="navbar-brand fw-bold text-primary" href="#">
+                <i class="bi bi-lightning-charge-fill"></i> QuizHive
+            </a>
+
+            <!-- Toggler for mobile view -->
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMenu"
+                aria-controls="navbarMenu" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <!-- Navbar items (right to left order) -->
+            <div class="collapse navbar-collapse" id="navbarMenu">
+                <ul class="navbar-nav ms-auto align-items-center">
+
+                    <!-- Create (leftmost among the right section) -->
+                    <li class="nav-item me-3">
+                        <a class="nav-link" href="#questionSection">Create</a>
+                    </li>
+
+                    <!-- Subjects -->
+                    <li class="nav-item me-3">
+                        <a class="nav-link" href="#subjectsSection">Subjects</a>
+                    </li>
+
+                    <!-- Search Bar -->
+                    <li class="nav-item me-4">
+                        <form class="d-flex" role="search" onsubmit="return false;">
+                            <input class="form-control me-2" type="search" placeholder="Enter Quiz Code"
+                                aria-label="Search">
+                            <button class="btn btn-outline-primary" type="submit">Join</button>
+                        </form>
+                    </li>
+
+                    <!-- Know More About Us (space added before Location) -->
+                    <li class="nav-item me-5">
+                        <a class="nav-link" href="#footerSection">Know More About Us</a>
+                    </li>
+
+
+                    <!-- Sign Up (rightmost) -->
+                    <li class="nav-item">
+                        <button class="btn btn-primary px-3" id="signupBtn">Sign Up</button>
+                    </li>
+
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+
+
+
+    <!-- Sign-Up Form Section,where the user will sign up -->
+
+    <section id="signupSection" class="py-5 bg-light" style="display: none;">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card shadow">
+                        <div class="card-body">
+                            <h3 class="text-center mb-4">Sign Up</h3>
+                            <form id="signupForm">
+                                <!-- Name Input -->
+                                <div class="mb-3">
+                                    <label for="name" class="form-label">Name</label>
+                                    <input type="text" id="name" class="form-control" placeholder="Enter your name">
+                                </div>
+
+                                <!-- Password Input -->
+                                <div class="mb-3">
+                                    <label for="password" class="form-label">Password</label>
+                                    <input type="password" id="password" class="form-control"
+                                        placeholder="Enter your password">
+                                </div>
+
+                                <!-- Proceed Button -->
+                                <div class="d-grid">
+                                    <button type="button" class="btn btn-primary" id="proceedBtn">Proceed</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Admin Section, where the user name apeare afer fillup the signup form -->
+
+    <section id="adminSection" class="py-5 bg-white" style="display: none;">
+        <div class="container text-center">
+            <h2 class="mb-3">Welcome, <span id="adminName">Admin</span>!</h2>
+            <p>You can manage your content or settings here later.</p>
+        </div>
+    </section>
+
+    <!-- QUIZ QUESTION SETUP SECTION -->
+    <section id="questionSection" class="py-5 bg-light" style="display: none;">
+        <div class="container">
+            <h2 class="text-center mb-4">Create Your Quiz</h2>
+            <p class="text-center mb-5">
+                You can add up to 10 questions. Each question will have 4 options and one correct answer.
+            </p>
+
+            <!-- QUESTIONS CONTAINER -->
+            <div id="questionsContainer">
+                <!-- Question 1 (base question, options added by JS) -->
+                <div class="card mb-4 p-3">
+                    <h5>Question 1</h5>
+                    <input type="text" class="form-control mb-3 question-input" placeholder="Enter your question here">
+                    <!-- ⚡ Options will be added here dynamically by JavaScript -->
+                </div>
+            </div>
+
+            <!-- ADD MORE & SUBMIT BUTTONS -->
+            <div class="text-center mt-4">
+                <button class="btn btn-success me-3" id="addQuestionBtn">Add More Question</button>
+                <button class="btn btn-primary me-3" id="submitQuizBtn">Submit Quiz</button>
+
+                <!-- ⭐ NEW BUTTON ADDED HERE ⭐ -->
+                <button type="button" id="cancel-btn" class="btn btn-secondary me-3">Cancel</button>
+
+
+                <p class="text-muted mt-2">(Maximum 10 questions allowed)</p>
+            </div>
+        </div>
+    </section>
+
+    <!--review quiz code And genrate unique code-->
+
+    <section id="reviewQuizSection" class="py-5" style="display: none;">
+        <div class="container">
+            <h3 class="text-center mb-4">Your Quiz Summary</h3>
+            <div id="createdQuestionsContainer" class="mb-4">
+                <!-- JS will fill this -->
+            </div>
+
+            <!-- GENERATE QUIZ CODE -->
+            <div class="text-center">
+                <button class="btn btn-primary" id="generateCodeBtn">Generate Quiz Code</button>
+                <button class="btn btn-primary" id="cancelfromthesubmit">Cancel</button>
+            </div>
+
+            <!-- QUIZ CODE APPEARS HERE -->
+            <div id="quizCodeContainer" class="text-center mt-4" style="display: none;">
+                <h5>Your Quiz Code:</h5>
+                <div class="p-3 bg-white d-inline-block border rounded shadow-sm">
+                    <code id="quizCode">AB12CD34</code>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- PAYMENT SECTION (Hidden Initially) -->
+    <section id="paymentSection" class="text-center mt-5" style="display: none;">
+        <div class="card d-inline-block p-4 shadow-sm" style="max-width: 400px;">
+            <h4 class="mb-3">Add More Questions</h4>
+            <p class="mb-3 text-muted">
+                You’ve reached the free limit of 10 questions.<br>
+                Pay a small amount to unlock up to 20 questions.
+            </p>
+            <button class="btn btn-warning" id="payBtn">💰 Pay to Proceed</button>
+        </div>
+    </section>
+
+
+
+    <!--Hero section, where i will add some cotaition for your website -->
+
+    <section class="py-5 bg-light" id="containts">
+        <div class="container text-center">
+            <h2 class="mb-3">“Learn. Play. Grow.”</h2>
+            <p class="lead">
+                Here's the platfrom in which you attend quiz , you can make quiz ,and make your brain strong. 
+            </p>
+        </div>
+    </section>
+
+<!--Subjects sliders-->
+    <section id="subjectsSection" class="py-5 bg-light">
+        <div class="container">
+            <!-- Section Heading -->
+            <h2 class="text-center mb-3">Available Subjects</h2>
+            <p class="text-center text-muted mb-3">
+                Select any subject below to start the quiz.
+            </p>
+
+            <div class="d-flex align-items-center">
+                <!-- Left Arrow -->
+                <button class="btn btn-outline-dark me-2" id="prevBtn">
+                    <i class="bi bi-arrow-left"></i>
+                </button>
+
+                <!-- Slider Wrapper -->
+                <div class="flex-grow-1 overflow-hidden">
+                    <div class="slider d-flex">
+                        <!-- Subject Container 1 -->
+                        <div class="card me-3 flex-shrink-0 text-center" id="dsa" style="width: 18rem; height: 200px;">
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <h5 class="card-title">DSA</h5>
+                            </div>
+                        </div>
+
+                        <!-- Subject Container 2 -->
+                        <div class="card me-3 flex-shrink-0 text-center" id="computerorganisation" style="width: 18rem; height: 200px;">
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <h5 class="card-title">COMPUTER ORGANISATION</h5>
+                            </div>
+                        </div>
+
+                        <!-- Subject Container 3 -->
+                        <div class="card me-3 flex-shrink-0 text-center" id="cprogramming" style="width: 18rem; height: 200px;">
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <h5 class="card-title">C PROGRAMMING</h5>
+                            </div>
+                        </div>
+
+                        <!-- Subject Container 4 -->
+                        <div class="card me-3 flex-shrink-0 text-center" id="card4q"style="width: 18rem; height: 200px;">
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <h5 class="card-title">BIOLOGY</h5>
+                            </div>
+                        </div>
+
+                        <!-- Subject Container 5 -->
+                        <div class="card me-3 flex-shrink-0 text-center" id="card5q" style="width: 18rem; height: 200px;">
+                            <div class="card-body d-flex align-items-center justify-content-center">
+                                <h5 class="card-title">PHYSICS</h5>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Arrow -->
+                <button class="btn btn-outline-dark ms-2" id="nextBtn">
+                    <i class="bi bi-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- 1st slide question-->
+    <!-- Card 1 -->
+    <div class="col-md-6 mb-4" id="dsaq">
+        <div class="card shadow p-3">
+            <h5 class="card-title mb-3 text-center">DSA QUIZ</h5>
+
+            <div class="quizContainer">
+                <!-- Question 1 -->
+                <div class="mb-3">
+                    <h6>1. Which of the following data structures uses FIFO (First In First Out) principle?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q1_card1" id="q1a_card1" value="A">
+                        <label class="form-check-label" for="q1a_card1">a) Stack</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q1_card1" id="q1b_card1" value="B">
+                        <label class="form-check-label" for="q1b_card1">b) Queue</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q1_card1" id="q1c_card1" value="C">
+                        <label class="form-check-label" for="q1c_card1">c) Tree</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q1_card1" id="q1d_card1" value="D">
+                        <label class="form-check-label" for="q1d_card1">d) Graph</label>
+                    </div>
+                </div>
+
+                <!-- Question 2 -->
+                <div class="mb-3">
+                    <h6>2. What is the time complexity of searching an element in a balanced binary search tree (BST)?
+                    </h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q2_card1" id="q2a_card1" value="A">
+                        <label class="form-check-label" for="q2a_card1">a) O(1)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q2_card1" id="q2b_card1" value="B">
+                        <label class="form-check-label" for="q2b_card1">b) O(log n)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q2_card1" id="q2c_card1" value="C">
+                        <label class="form-check-label" for="q2c_card1">c) O(n)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q2_card1" id="q2d_card1" value="D">
+                        <label class="form-check-label" for="q2d_card1">d) O(n log n)</label>
+                    </div>
+                </div>
+
+                <!-- Question 3 -->
+                <div class="mb-3">
+                    <h6>3. Which of the following sorting algorithms has the best average-case time complexity?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q3_card1" id="q3a_card1" value="A">
+                        <label class="form-check-label" for="q3a_card1">a) Bubble Sort</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q3_card1" id="q3b_card1" value="B">
+                        <label class="form-check-label" for="q3b_card1">b) Quick Sort</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q3_card1" id="q3c_card1" value="C">
+                        <label class="form-check-label" for="q3c_card1">c) Insertion Sort</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q3_card1" id="q3d_card1" value="D">
+                        <label class="form-check-label" for="q3d_card1">d) Selection Sort</label>
+                    </div>
+                </div>
+
+                <!-- Question 4 -->
+                <div class="mb-3">
+                    <h6>4. What type of data structure is used in recursion?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q4_card1" id="q4a_card1" value="A">
+                        <label class="form-check-label" for="q4a_card1">a) Queue</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q4_card1" id="q4b_card1" value="B">
+                        <label class="form-check-label" for="q4b_card1">b) Stack</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q4_card1" id="q4c_card1" value="C">
+                        <label class="form-check-label" for="q4c_card1">c) Linked List</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q4_card1" id="q4d_card1" value="D">
+                        <label class="form-check-label" for="q4d_card1">d) Graph</label>
+                    </div>
+                </div>
+
+                <!-- Question 5 -->
+                <div class="mb-3">
+                    <h6>5. What is the maximum number of children a node can have in a binary tree?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q5_card1" id="q5a_card1" value="A">
+                        <label class="form-check-label" for="q5a_card1">a) 1</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q5_card1" id="q5b_card1" value="B">
+                        <label class="form-check-label" for="q5b_card1">b) 2</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q5_card1" id="q5c_card1" value="C">
+                        <label class="form-check-label" for="q5c_card1">c) 3</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q5_card1" id="q5d_card1" value="D">
+                        <label class="form-check-label" for="q5d_card1">d) Unlimited</label>
+                    </div>
+                </div>
+
+                <!-- Question 6 -->
+                <div class="mb-3">
+                    <h6>6. Which data structure is best suited for implementing a priority queue?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q6_card1" id="q6a_card1" value="A">
+                        <label class="form-check-label" for="q6a_card1">a) Array</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q6_card1" id="q6b_card1" value="B">
+                        <label class="form-check-label" for="q6b_card1">b) Linked List</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q6_card1" id="q6c_card1" value="C">
+                        <label class="form-check-label" for="q6c_card1">c) Heap</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q6_card1" id="q6d_card1" value="D">
+                        <label class="form-check-label" for="q6d_card1">d) Stack</label>
+                    </div>
+                </div>
+
+                <!-- Question 7 -->
+                <div class="mb-3">
+                    <h6>7. Which of the following traversals is NOT a depth-first traversal?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q7_card1" id="q7a_card1" value="A">
+                        <label class="form-check-label" for="q7a_card1">a) Preorder</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q7_card1" id="q7b_card1" value="B">
+                        <label class="form-check-label" for="q7b_card1">b) Inorder</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q7_card1" id="q7c_card1" value="C">
+                        <label class="form-check-label" for="q7c_card1">c) Postorder</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q7_card1" id="q7d_card1" value="D">
+                        <label class="form-check-label" for="q7d_card1">d) Level Order</label>
+                    </div>
+                </div>
+
+                <!-- Question 8 -->
+                <div class="mb-3">
+                    <h6>8. Which of the following is a self-adjusting data structure?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q8_card1" id="q8a_card1" value="A">
+                        <label class="form-check-label" for="q8a_card1">a) AVL Tree</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q8_card1" id="q8b_card1" value="B">
+                        <label class="form-check-label" for="q8b_card1">b) Splay Tree</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q8_card1" id="q8c_card1" value="C">
+                        <label class="form-check-label" for="q8c_card1">c) B-Tree</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q8_card1" id="q8d_card1" value="D">
+                        <label class="form-check-label" for="q8d_card1">d) Binary Heap</label>
+                    </div>
+                </div>
+
+                <!-- Question 9 -->
+                <div class="mb-3">
+                    <h6>9. Which searching algorithm is best for a sorted array?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q9_card1" id="q9a_card1" value="A">
+                        <label class="form-check-label" for="q9a_card1">a) Linear Search</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q9_card1" id="q9b_card1" value="B">
+                        <label class="form-check-label" for="q9b_card1">b) Binary Search</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q9_card1" id="q9c_card1" value="C">
+                        <label class="form-check-label" for="q9c_card1">c) Jump Search</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q9_card1" id="q9d_card1" value="D">
+                        <label class="form-check-label" for="q9d_card1">d) Exponential Search</label>
+                    </div>
+                </div>
+
+                <!-- Question 10 -->
+                <div class="mb-3">
+                    <h6>10. What is the worst-case time complexity of inserting an element in a hash table using
+                        chaining?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q10_card1" id="q10a_card1" value="A">
+                        <label class="form-check-label" for="q10a_card1">a) O(1)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q10_card1" id="q10b_card1" value="B">
+                        <label class="form-check-label" for="q10b_card1">b) O(log n)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q10_card1" id="q10c_card1" value="C">
+                        <label class="form-check-label" for="q10c_card1">c) O(n)</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="q10_card1" id="q10d_card1" value="D">
+                        <label class="form-check-label" for="q10d_card1">d) O(n log n)</label>
+                    </div>
+                </div>
+
+            </div>
+
+            <div class="text-center mt-3">
+                <button class="btn btn-success submitCardBtn" id="subdsa">Submit This Card</button>
+            </div>
+        </div>
+    </div>
+
+
+    <!--Computer organisation question-->
+
+    <!-- Card 2 -->
+    <div class="col-md-6 mb-4" id="organisationq">
+        <div class="card shadow p-3">
+            <h5 class="card-title mb-3 text-center">COMPUTER ORGANISATION QUIZ</h5>
+
+            <div class="quizContainer">
+                <!-- Question 1 -->
+                <div class="mb-3">
+                    <h6>1. Which of the following is the fastest memory?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q1"
+                            id="computerorganisation_q1a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q1a">a) Cache</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q1"
+                            id="computerorganisation_q1b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q1b">b) RAM</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q1"
+                            id="computerorganisation_q1c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q1c">c) Hard Disk</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q1"
+                            id="computerorganisation_q1d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q1d">d) Register</label>
+                    </div>
+                </div>
+
+                <!-- Question 2 -->
+                <div class="mb-3">
+                    <h6>2. What does ALU stand for?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q2"
+                            id="computerorganisation_q2a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q2a">a) Arithmetic Logic Unit</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q2"
+                            id="computerorganisation_q2b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q2b">b) Application Logic Unit</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q2"
+                            id="computerorganisation_q2c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q2c">c) Advanced Logic Utility</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q2"
+                            id="computerorganisation_q2d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q2d">d) Additional Logic Unit</label>
+                    </div>
+                </div>
+
+                <!-- Question 3 -->
+                <div class="mb-3">
+                    <h6>3. Which addressing mode uses the actual value of the operand in the instruction?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q3"
+                            id="computerorganisation_q3a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q3a">a) Direct</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q3"
+                            id="computerorganisation_q3b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q3b">b) Immediate</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q3"
+                            id="computerorganisation_q3c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q3c">c) Indirect</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q3"
+                            id="computerorganisation_q3d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q3d">d) Indexed</label>
+                    </div>
+                </div>
+
+                <!-- Question 4 -->
+                <div class="mb-3">
+                    <h6>4. Which bus is used to carry signals that select the operation or device?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q4"
+                            id="computerorganisation_q4a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q4a">a) Data Bus</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q4"
+                            id="computerorganisation_q4b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q4b">b) Address Bus</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q4"
+                            id="computerorganisation_q4c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q4c">c) Control Bus</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q4"
+                            id="computerorganisation_q4d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q4d">d) System Bus</label>
+                    </div>
+                </div>
+
+                <!-- Question 5 -->
+                <div class="mb-3">
+                    <h6>5. Which of the following is NOT a type of cache mapping technique?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q5"
+                            id="computerorganisation_q5a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q5a">a) Direct mapping</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q5"
+                            id="computerorganisation_q5b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q5b">b) Fully associative
+                            mapping</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q5"
+                            id="computerorganisation_q5c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q5c">c) Set-associative
+                            mapping</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q5"
+                            id="computerorganisation_q5d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q5d">d) Linked mapping</label>
+                    </div>
+                </div>
+
+                <!-- Question 6 -->
+                <div class="mb-3">
+                    <h6>6. Which register holds the address of the next instruction to be executed?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q6"
+                            id="computerorganisation_q6a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q6a">a) MAR</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q6"
+                            id="computerorganisation_q6b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q6b">b) PC</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q6"
+                            id="computerorganisation_q6c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q6c">c) IR</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q6"
+                            id="computerorganisation_q6d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q6d">d) MDR</label>
+                    </div>
+                </div>
+
+                <!-- Question 7 -->
+                <div class="mb-3">
+                    <h6>7. What is the purpose of the instruction register (IR)?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q7"
+                            id="computerorganisation_q7a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q7a">a) Stores data fetched from
+                            memory</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q7"
+                            id="computerorganisation_q7b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q7b">b) Stores the next instruction
+                            address</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q7"
+                            id="computerorganisation_q7c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q7c">c) Holds the current
+                            instruction</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q7"
+                            id="computerorganisation_q7d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q7d">d) Stores intermediate arithmetic
+                            results</label>
+                    </div>
+                </div>
+
+                <!-- Question 8 -->
+                <div class="mb-3">
+                    <h6>8. In pipelining, which type of hazard occurs due to dependence between instructions?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q8"
+                            id="computerorganisation_q8a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q8a">a) Structural hazard</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q8"
+                            id="computerorganisation_q8b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q8b">b) Data hazard</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q8"
+                            id="computerorganisation_q8c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q8c">c) Control hazard</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q8"
+                            id="computerorganisation_q8d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q8d">d) Mapping hazard</label>
+                    </div>
+                </div>
+
+                <!-- Question 9 -->
+                <div class="mb-3">
+                    <h6>9. Which device converts analog signals to digital?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q9"
+                            id="computerorganisation_q9a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q9a">a) DAC</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q9"
+                            id="computerorganisation_q9b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q9b">b) ADC</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q9"
+                            id="computerorganisation_q9c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q9c">c) Modem</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q9"
+                            id="computerorganisation_q9d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q9d">d) Encoder</label>
+                    </div>
+                </div>
+
+                <!-- Question 10 -->
+                <div class="mb-3">
+                    <h6>10. What does a microprogramming control unit use?</h6>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q10"
+                            id="computerorganisation_q10a" value="A">
+                        <label class="form-check-label" for="computerorganisation_q10a">a) Hardwired circuits</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q10"
+                            id="computerorganisation_q10b" value="B">
+                        <label class="form-check-label" for="computerorganisation_q10b">b) Microinstructions stored in
+                            control memory</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q10"
+                            id="computerorganisation_q10c" value="C">
+                        <label class="form-check-label" for="computerorganisation_q10c">c) Combinational logic</label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="computerorganisation_q10"
+                            id="computerorganisation_q10d" value="D">
+                        <label class="form-check-label" for="computerorganisation_q10d">d) Flip-flops only</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="text-center mt-3">
+                <button class="btn btn-success submitCardBtn" id="suborg">Submit This Card</button>
+            </div>
+        </div>
+    </div>
+
+<!--C programming card 3-->
+<!-- QUIZ CARD 3 : C PROGRAMMING -->
+<div class="col-md-6" id="cprogrammingq">
+    <div class="card shadow p-3">
+        <h5 class="card-title mb-3 text-center">C PROGRAMMING QUIZ</h5>
+
+        <!-- Question 1 -->
+        <div class="mb-3">
+            <h6>1. Which of the following is a valid variable name in C?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q1" id="cprog_q1a">
+                <label class="form-check-label" for="cprog_q1a">2value</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q1" id="cprog_q1b">
+                <label class="form-check-label" for="cprog_q1b">value_2</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q1" id="cprog_q1c">
+                <label class="form-check-label" for="cprog_q1c">value-2</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q1" id="cprog_q1d">
+                <label class="form-check-label" for="cprog_q1d">#value</label>
+            </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="mb-3">
+            <h6>2. Which header file is required for using printf() and scanf()?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q2" id="cprog_q2a">
+                <label class="form-check-label" for="cprog_q2a">stdlib.h</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q2" id="cprog_q2b">
+                <label class="form-check-label" for="cprog_q2b">conio.h</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q2" id="cprog_q2c">
+                <label class="form-check-label" for="cprog_q2c">stdio.h</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q2" id="cprog_q2d">
+                <label class="form-check-label" for="cprog_q2d">string.h</label>
+            </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="mb-3">
+            <h6>3. What is the default return type of a function in C if not specified?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q3" id="cprog_q3a">
+                <label class="form-check-label" for="cprog_q3a">float</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q3" id="cprog_q3b">
+                <label class="form-check-label" for="cprog_q3b">int</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q3" id="cprog_q3c">
+                <label class="form-check-label" for="cprog_q3c">void</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q3" id="cprog_q3d">
+                <label class="form-check-label" for="cprog_q3d">double</label>
+            </div>
+        </div>
+
+        <!-- Question 4 -->
+        <div class="mb-3">
+            <h6>4. Which operator is used to access a value stored at a pointer?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q4" id="cprog_q4a">
+                <label class="form-check-label" for="cprog_q4a">&</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q4" id="cprog_q4b">
+                <label class="form-check-label" for="cprog_q4b">*</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q4" id="cprog_q4c">
+                <label class="form-check-label" for="cprog_q4c">-></label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q4" id="cprog_q4d">
+                <label class="form-check-label" for="cprog_q4d">%</label>
+            </div>
+        </div>
+
+        <!-- Question 5 -->
+        <div class="mb-3">
+            <h6>5. What is the size of int in most 32-bit compilers?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q5" id="cprog_q5a">
+                <label class="form-check-label" for="cprog_q5a">1 byte</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q5" id="cprog_q5b">
+                <label class="form-check-label" for="cprog_q5b">2 bytes</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q5" id="cprog_q5c">
+                <label class="form-check-label" for="cprog_q5c">4 bytes</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q5" id="cprog_q5d">
+                <label class="form-check-label" for="cprog_q5d">8 bytes</label>
+            </div>
+        </div>
+
+        <!-- Question 6 -->
+        <div class="mb-3">
+            <h6>6. Which loop guarantees at least one execution?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q6" id="cprog_q6a">
+                <label class="form-check-label" for="cprog_q6a">for</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q6" id="cprog_q6b">
+                <label class="form-check-label" for="cprog_q6b">while</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q6" id="cprog_q6c">
+                <label class="form-check-label" for="cprog_q6c">do-while</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q6" id="cprog_q6d">
+                <label class="form-check-label" for="cprog_q6d">nested for</label>
+            </div>
+        </div>
+
+        <!-- Question 7 -->
+        <div class="mb-3">
+            <h6>7. What will strlen("Hello") return?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q7" id="cprog_q7a">
+                <label class="form-check-label" for="cprog_q7a">4</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q7" id="cprog_q7b">
+                <label class="form-check-label" for="cprog_q7b">5</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q7" id="cprog_q7c">
+                <label class="form-check-label" for="cprog_q7c">6</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q7" id="cprog_q7d">
+                <label class="form-check-label" for="cprog_q7d">0</label>
+            </div>
+        </div>
+
+        <!-- Question 8 -->
+        <div class="mb-3">
+            <h6>8. Which of the following is NOT a storage class in C?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q8" id="cprog_q8a">
+                <label class="form-check-label" for="cprog_q8a">auto</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q8" id="cprog_q8b">
+                <label class="form-check-label" for="cprog_q8b">volatile</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q8" id="cprog_q8c">
+                <label class="form-check-label" for="cprog_q8c">extern</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q8" id="cprog_q8d">
+                <label class="form-check-label" for="cprog_q8d">static</label>
+            </div>
+        </div>
+
+        <!-- Question 9 -->
+        <div class="mb-3">
+            <h6>9. What is the correct way to declare an array of 10 integers?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q9" id="cprog_q9a">
+                <label class="form-check-label" for="cprog_q9a">int arr(10);</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q9" id="cprog_q9b">
+                <label class="form-check-label" for="cprog_q9b">arr[10] int;</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q9" id="cprog_q9c">
+                <label class="form-check-label" for="cprog_q9c">int arr[10];</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q9" id="cprog_q9d">
+                <label class="form-check-label" for="cprog_q9d">array int arr[10];</label>
+            </div>
+        </div>
+
+        <!-- Question 10 -->
+        <div class="mb-3">
+            <h6>10. What is the output of the following code?<br>
+                int a = 5;<br>
+                int b = ++a;<br>
+                printf("%d", b);</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q10" id="cprog_q10a">
+                <label class="form-check-label" for="cprog_q10a">4</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q10" id="cprog_q10b">
+                <label class="form-check-label" for="cprog_q10b">5</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q10" id="cprog_q10c">
+                <label class="form-check-label" for="cprog_q10c">6</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="cprog_q10" id="cprog_q10d">
+                <label class="form-check-label" for="cprog_q10d">Undefined</label>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <button class="btn btn-success submitCardBtn" id="subc">Submit This Card</button>
+        </div>
+    </div>
+</div>
+
+<!--card 4 , biology-->
+
+<!-- QUIZ CARD 4 : BIOLOGY -->
+<div class="col-md-6" id="biologyquiz">
+    <div class="card shadow p-3">
+        <h5 class="card-title mb-3 text-center">BIOLOGY QUIZ</h5>
+
+        <!-- Question 1 -->
+        <div class="mb-3">
+            <h6>1. What is the basic unit of life?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q1" id="bio_q1a">
+                <label class="form-check-label" for="bio_q1a">Tissue</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q1" id="bio_q1b">
+                <label class="form-check-label" for="bio_q1b">Organ</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q1" id="bio_q1c">
+                <label class="form-check-label" for="bio_q1c">Cell</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q1" id="bio_q1d">
+                <label class="form-check-label" for="bio_q1d">Molecule</label>
+            </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="mb-3">
+            <h6>2. Which pigment gives plants their green color?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q2" id="bio_q2a">
+                <label class="form-check-label" for="bio_q2a">Hemoglobin</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q2" id="bio_q2b">
+                <label class="form-check-label" for="bio_q2b">Chlorophyll</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q2" id="bio_q2c">
+                <label class="form-check-label" for="bio_q2c">Melanin</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q2" id="bio_q2d">
+                <label class="form-check-label" for="bio_q2d">Carotene</label>
+            </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="mb-3">
+            <h6>3. Which organ is responsible for pumping blood in the human body?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q3" id="bio_q3a">
+                <label class="form-check-label" for="bio_q3a">Lungs</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q3" id="bio_q3b">
+                <label class="form-check-label" for="bio_q3b">Liver</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q3" id="bio_q3c">
+                <label class="form-check-label" for="bio_q3c">Kidney</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q3" id="bio_q3d">
+                <label class="form-check-label" for="bio_q3d">Heart</label>
+            </div>
+        </div>
+
+        <!-- Question 4 -->
+        <div class="mb-3">
+            <h6>4. Which part of the plant conducts photosynthesis?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q4" id="bio_q4a">
+                <label class="form-check-label" for="bio_q4a">Root</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q4" id="bio_q4b">
+                <label class="form-check-label" for="bio_q4b">Stem</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q4" id="bio_q4c">
+                <label class="form-check-label" for="bio_q4c">Leaf</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q4" id="bio_q4d">
+                <label class="form-check-label" for="bio_q4d">Flower</label>
+            </div>
+        </div>
+
+        <!-- Question 5 -->
+        <div class="mb-3">
+            <h6>5. What type of blood cells help in clotting?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q5" id="bio_q5a">
+                <label class="form-check-label" for="bio_q5a">Red blood cells</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q5" id="bio_q5b">
+                <label class="form-check-label" for="bio_q5b">White blood cells</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q5" id="bio_q5c">
+                <label class="form-check-label" for="bio_q5c">Platelets</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q5" id="bio_q5d">
+                <label class="form-check-label" for="bio_q5d">Plasma</label>
+            </div>
+        </div>
+
+        <!-- Question 6 -->
+        <div class="mb-3">
+            <h6>6. Which vitamin is produced naturally by the skin when exposed to sunlight?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q6" id="bio_q6a">
+                <label class="form-check-label" for="bio_q6a">Vitamin A</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q6" id="bio_q6b">
+                <label class="form-check-label" for="bio_q6b">Vitamin B</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q6" id="bio_q6c">
+                <label class="form-check-label" for="bio_q6c">Vitamin C</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q6" id="bio_q6d">
+                <label class="form-check-label" for="bio_q6d">Vitamin D</label>
+            </div>
+        </div>
+
+        <!-- Question 7 -->
+        <div class="mb-3">
+            <h6>7. Which of the following is the powerhouse of the cell?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q7" id="bio_q7a">
+                <label class="form-check-label" for="bio_q7a">Ribosome</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q7" id="bio_q7b">
+                <label class="form-check-label" for="bio_q7b">Mitochondria</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q7" id="bio_q7c">
+                <label class="form-check-label" for="bio_q7c">Nucleus</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q7" id="bio_q7d">
+                <label class="form-check-label" for="bio_q7d">Golgi body</label>
+            </div>
+        </div>
+
+        <!-- Question 8 -->
+        <div class="mb-3">
+            <h6>8. Which gas do plants absorb during photosynthesis?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q8" id="bio_q8a">
+                <label class="form-check-label" for="bio_q8a">Oxygen</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q8" id="bio_q8b">
+                <label class="form-check-label" for="bio_q8b">Carbon dioxide</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q8" id="bio_q8c">
+                <label class="form-check-label" for="bio_q8c">Nitrogen</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q8" id="bio_q8d">
+                <label class="form-check-label" for="bio_q8d">Hydrogen</label>
+            </div>
+        </div>
+
+        <!-- Question 9 -->
+        <div class="mb-3">
+            <h6>9. What is the scientific study of heredity called?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q9" id="bio_q9a">
+                <label class="form-check-label" for="bio_q9a">Zoology</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q9" id="bio_q9b">
+                <label class="form-check-label" for="bio_q9b">Ecology</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q9" id="bio_q9c">
+                <label class="form-check-label" for="bio_q9c">Genetics</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q9" id="bio_q9d">
+                <label class="form-check-label" for="bio_q9d">Botany</label>
+            </div>
+        </div>
+
+        <!-- Question 10 -->
+        <div class="mb-3">
+            <h6>10. Which of the following is NOT a vertebrate?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q10" id="bio_q10a">
+                <label class="form-check-label" for="bio_q10a">Frog</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q10" id="bio_q10b">
+                <label class="form-check-label" for="bio_q10b">Snake</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q10" id="bio_q10c">
+                <label class="form-check-label" for="bio_q10c">Fish</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="bio_q10" id="bio_q10d">
+                <label class="form-check-label" for="bio_q10d">Earthworm</label>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <button class="btn btn-success submitCardBtn" id="subbio">Submit This Card</button>
+        </div>
+
+    </div>
+</div>
+
+
+<!--card 5 physics-->
+<!-- QUIZ CARD 5 : PHYSICS -->
+<div class="col-md-6" id="physicsq">
+    <div class="card shadow p-3">
+        <h5 class="card-title mb-3 text-center">PHYSICS QUIZ</h5>
+
+        <!-- Question 1 -->
+        <div class="mb-3">
+            <h6>1. What is the SI unit of force?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q1" id="phy_q1a">
+                <label class="form-check-label" for="phy_q1a">Watt</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q1" id="phy_q1b">
+                <label class="form-check-label" for="phy_q1b">Newton</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q1" id="phy_q1c">
+                <label class="form-check-label" for="phy_q1c">Pascal</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q1" id="phy_q1d">
+                <label class="form-check-label" for="phy_q1d">Joule</label>
+            </div>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="mb-3">
+            <h6>2. Which of the following is a vector quantity?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q2" id="phy_q2a">
+                <label class="form-check-label" for="phy_q2a">Speed</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q2" id="phy_q2b">
+                <label class="form-check-label" for="phy_q2b">Distance</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q2" id="phy_q2c">
+                <label class="form-check-label" for="phy_q2c">Temperature</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q2" id="phy_q2d">
+                <label class="form-check-label" for="phy_q2d">Velocity</label>
+            </div>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="mb-3">
+            <h6>3. What is the speed of light in vacuum?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q3" id="phy_q3a">
+                <label class="form-check-label" for="phy_q3a">3 × 10⁶ m/s</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q3" id="phy_q3b">
+                <label class="form-check-label" for="phy_q3b">3 × 10⁸ m/s</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q3" id="phy_q3c">
+                <label class="form-check-label" for="phy_q3c">3 × 10⁴ m/s</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q3" id="phy_q3d">
+                <label class="form-check-label" for="phy_q3d">3 × 10¹⁰ m/s</label>
+            </div>
+        </div>
+
+        <!-- Question 4 -->
+        <div class="mb-3">
+            <h6>4. Which law states that “Pressure is transmitted equally in all directions”?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q4" id="phy_q4a">
+                <label class="form-check-label" for="phy_q4a">Boyle’s Law</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q4" id="phy_q4b">
+                <label class="form-check-label" for="phy_q4b">Pascal’s Law</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q4" id="phy_q4c">
+                <label class="form-check-label" for="phy_q4c">Newton’s 2nd Law</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q4" id="phy_q4d">
+                <label class="form-check-label" for="phy_q4d">Archimedes’ Principle</label>
+            </div>
+        </div>
+
+        <!-- Question 5 -->
+        <div class="mb-3">
+            <h6>5. Which of the following has the highest frequency?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q5" id="phy_q5a">
+                <label class="form-check-label" for="phy_q5a">Infrared</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q5" id="phy_q5b">
+                <label class="form-check-label" for="phy_q5b">Visible light</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q5" id="phy_q5c">
+                <label class="form-check-label" for="phy_q5c">Ultraviolet</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q5" id="phy_q5d">
+                <label class="form-check-label" for="phy_q5d">Gamma rays</label>
+            </div>
+        </div>
+
+        <!-- Question 6 -->
+        <div class="mb-3">
+            <h6>6. What quantity does the slope of a velocity–time graph represent?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q6" id="phy_q6a">
+                <label class="form-check-label" for="phy_q6a">Distance</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q6" id="phy_q6b">
+                <label class="form-check-label" for="phy_q6b">Displacement</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q6" id="phy_q6c">
+                <label class="form-check-label" for="phy_q6c">Acceleration</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q6" id="phy_q6d">
+                <label class="form-check-label" for="phy_q6d">Speed</label>
+            </div>
+        </div>
+
+        <!-- Question 7 -->
+        <div class="mb-3">
+            <h6>7. Which device converts mechanical energy into electrical energy?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q7" id="phy_q7a">
+                <label class="form-check-label" for="phy_q7a">Transformer</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q7" id="phy_q7b">
+                <label class="form-check-label" for="phy_q7b">Generator</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q7" id="phy_q7c">
+                <label class="form-check-label" for="phy_q7c">Motor</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q7" id="phy_q7d">
+                <label class="form-check-label" for="phy_q7d">Battery</label>
+            </div>
+        </div>
+
+        <!-- Question 8 -->
+        <div class="mb-3">
+            <h6>8. What is the unit of electric resistance?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q8" id="phy_q8a">
+                <label class="form-check-label" for="phy_q8a">Coulomb</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q8" id="phy_q8b">
+                <label class="form-check-label" for="phy_q8b">Watt</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q8" id="phy_q8c">
+                <label class="form-check-label" for="phy_q8c">Ohm</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q8" id="phy_q8d">
+                <label class="form-check-label" for="phy_q8d">Volt</label>
+            </div>
+        </div>
+
+        <!-- Question 9 -->
+        <div class="mb-3">
+            <h6>9. Which law explains the relationship between current, voltage, and resistance?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q9" id="phy_q9a">
+                <label class="form-check-label" for="phy_q9a">Ohm's Law</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q9" id="phy_q9b">
+                <label class="form-check-label" for="phy_q9b">Faraday’s Law</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q9" id="phy_q9c">
+                <label class="form-check-label" for="phy_q9c">Coulomb’s Law</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q9" id="phy_q9d">
+                <label class="form-check-label" for="phy_q9d">Newton’s Law</label>
+            </div>
+        </div>
+
+        <!-- Question 10 -->
+        <div class="mb-3">
+            <h6>10. What phenomenon causes a pencil to look bent in water?</h6>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q10" id="phy_q10a">
+                <label class="form-check-label" for="phy_q10a">Reflection</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q10" id="phy_q10b">
+                <label class="form-check-label" for="phy_q10b">Dispersion</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q10" id="phy_q10c">
+                <label class="form-check-label" for="phy_q10c">Refraction</label>
+            </div>
+            <div class="form-check">
+                <input class="form-check-input" type="radio" name="phy_q10" id="phy_q10d">
+                <label class="form-check-label" for="phy_q10d">Diffraction</label>
+            </div>
+        </div>
+
+        <div class="text-center mt-3">
+            <button class="btn btn-success submitCardBtn" id="subphy">Submit This Card</button>
+        </div>
+    </div>
+</div>
+
+
+
+
+    <!-- RESULT BOX (HIDDEN INITIALLY) -->
+    <div id="resultContainer" class="card shadow p-4 text-center" style="display:none;">
+        <h3>Your Score:</h3>
+        <h1 id="userScore" class="display-4 text-success"></h1>
+        <button id="closeResultBtn" class="btn btn-primary mt-3">Close</button>
+    </div>
+
+
+    <!-- Footer Section?Know more about us section -->
+    <footer class="mt-5 py-4 bg-dark text-light" id="foot">
+        <div class="container text-center">
+            <p class="mb-0">
+                Welcome to QuizHive, your interactive platform for quick, fun, and engaging quizzes.
+                We aim to make learning simple and enjoyable by providing topic-wise quizzes that help you test your
+                knowledge and improve your skills.
+            </p>
+            <small class="text-secondary">© 2025 QuizHive. All rights reserved.</small>
+        </div>
+    </footer>
+
+
+</body>
+
+</html>
